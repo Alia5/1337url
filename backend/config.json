@@ -1,6 +1,6 @@
 {
     "port": 7080,
-    "baseUrl": "https://localhost:7080",
+    "baseurl": "https://localhost:7080/u",
     "debug": false,
     "db": {
         "host": "localhost",
@@ -8,5 +8,11 @@
         "password": "",
         "database": "urlshort",
         "databasePort": 3306
-    }
+    },
+    "users": [
+        {
+            "name": "admin",
+            "pass": "admin"
+        }
+    ]
 }

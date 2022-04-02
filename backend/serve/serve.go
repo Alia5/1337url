@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
+	"github.com/alia5/urlshort/auth"
 	"github.com/alia5/urlshort/urlshort"
+	"github.com/alia5/urlshort/util"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,13 +23,19 @@ type ServeOptions struct {
 type ServeUrls struct {
 	redirUrl  string
 	createUrl string
+	authUrl   string
 }
 
 type CreateLinkBody struct {
 	CustomShortText string `json:"customShortText"`
 }
 
-var defaultUrls = ServeUrls{redirUrl: "u", createUrl: "u"}
+type AuthBody struct {
+	User string `json:"user"`
+	Pass string `json:"pass"`
+}
+
+var defaultUrls = ServeUrls{redirUrl: "u", createUrl: "u", authUrl: "auth"}
 
 func Run(opts ServeOptions) {
 	if opts.Urls.redirUrl == "" {
@@ -34,13 +44,22 @@ func Run(opts ServeOptions) {
 	if opts.Urls.createUrl == "" {
 		opts.Urls.createUrl = defaultUrls.createUrl
 	}
+	if opts.Urls.authUrl == "" {
+		opts.Urls.authUrl = defaultUrls.authUrl
+	}
 	r := gin.Default()
 	r.Use(gin.Recovery())
+	corsConf := cors.DefaultConfig()
+	corsConf.AllowCredentials = true
+	corsConf.AllowAllOrigins = true
+	corsConf.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+	r.Use(cors.New(corsConf))
 	if !opts.Debug {
 		gin.SetMode(gin.ReleaseMode)
 		r.SetTrustedProxies([]string{"localhost"}) // TODO: configurable
 	}
 
+	r.POST(fmt.Sprintf("/%s", opts.Urls.authUrl), authUrl())
 	r.GET(fmt.Sprintf("/%s/:tinyurl", opts.Urls.redirUrl), redirectUrl("tinyurl"))
 	r.POST(fmt.Sprintf("/%s/*url", opts.Urls.createUrl), shortenUrl("url"))
 
@@ -52,7 +71,7 @@ func redirectUrl(urlParam string) func(*gin.Context) {
 		fullUrl, err := urlshort.Unshorten(urlshort.UnshortenParams{Text: c.Param(urlParam), Click: true})
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{
-				"status":  "404",
+				"status":  http.StatusNotFound,
 				"error":   "Not found",
 				"message": err.Error(), // TODO: don't pass code errors outside; proper err handling
 			})
@@ -67,6 +86,25 @@ func redirectUrl(urlParam string) func(*gin.Context) {
 
 func shortenUrl(urlParam string) func(*gin.Context) {
 	return func(c *gin.Context) {
+		// no auth middleware, we have just that one endpoint anyway...
+		authHeader := c.Request.Header.Get("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status":  http.StatusUnauthorized,
+				"error":   "Unauthorized",
+				"message": "Missing Header",
+			})
+			return
+		}
+		jwt := util.SlicePop(strings.Split(authHeader, " ")) // rofl... FUCK GO!
+		if _, err := auth.ValidateJwt(jwt); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status":  http.StatusUnauthorized,
+				"error":   "Unauthorized",
+				"message": err.Error(),
+			})
+			return
+		}
 
 		var (
 			shortUrl string
@@ -85,7 +123,7 @@ func shortenUrl(urlParam string) func(*gin.Context) {
 				shortUrl, created, err = urlshort.ShortenWithName(url, json.CustomShortText)
 			} else {
 				c.JSON(http.StatusBadRequest, gin.H{
-					"status":  "400",
+					"status":  http.StatusBadRequest,
 					"error":   "Bad Request",
 					"message": "Malformed JSON body",
 				})
@@ -111,5 +149,33 @@ func shortenUrl(urlParam string) func(*gin.Context) {
 			"text/html; charset=utf-8",
 			[]byte(shortUrl),
 		)
+	}
+}
+
+func authUrl() func(*gin.Context) {
+	return func(c *gin.Context) {
+		var json AuthBody
+		if err := c.ShouldBindJSON(&json); err == nil {
+			jwt, err := auth.CreateJwt(json.User, json.Pass)
+			if err == nil {
+				c.JSON(http.StatusOK, gin.H{
+					"status": http.StatusOK,
+					"jwt":    jwt,
+				})
+			} else {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"status":  http.StatusUnauthorized,
+					"error":   "Unauthorized",
+					"message": "User not allowed",
+				})
+			}
+
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  http.StatusBadRequest,
+				"error":   "Bad Request",
+				"message": "Malformed JSON body",
+			})
+		}
 	}
 }

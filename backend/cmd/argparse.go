@@ -2,17 +2,19 @@ package cmd
 
 import (
 	"github.com/alecthomas/kong"
+	"github.com/alia5/urlshort/auth"
 	"github.com/alia5/urlshort/storinator"
 )
 
 var CLI struct {
 	// TODO move to serve command
 	Port    int16  `short:"p" long:"port" help:"Port to listen on" default:"7080"`
-	BaseUrl string `short:"b" long:"baseurl" help:"Base url for short urls" default:"https://localhost:7080"`
+	Baseurl string `short:"b" long:"baseurl" help:"Base url for short urls" default:"https://localhost:7080"`
 	Debug   bool   `long:"debug" help:"Enable debug mode"`
 
 	//
-	DB storinator.DBSettings `prefix:"db." embed:""`
+	DB    storinator.DBSettings `prefix:"db." embed:""`
+	Users []auth.User
 }
 
 type Cmd uint

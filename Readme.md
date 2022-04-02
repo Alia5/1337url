@@ -7,13 +7,11 @@ So here's yet another shitty url shortening service written in Go.
 
 - Short Strings are 6 random alphanumeric characters, no fancy Base62 encoding stuff  
 So this is not really scalable or for public use
-  - Why? Enough for my own personal use
-- No Authentication  
-  - Why? NginX ¯\\\_(ツ)\_/¯
+  - Enough for my own personal use
 - Source URLS must be https, no plain http
-  - Why? just to bug you!
+  - just to bug you!
 - Code is not finished, no tests, no documentation
-  - Why? Enough for my own personal use.
+  - Enough for my own personal use.
 
 You really shouldn't use this.  
 It is licensed under WTFPL, however, so feel free!
