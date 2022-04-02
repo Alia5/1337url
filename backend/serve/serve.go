@@ -114,7 +114,7 @@ func shortenUrl(urlParam string) func(*gin.Context) {
 		// for some odd reason, gin adds a leading "/"
 		// thanks gin! I knew I couldn't trust you... Who the fuck drinks gin with a 🍋-slice, anyway (except monkeys)?! 🥒
 		// trim that...
-		url := c.Param(urlParam)[1:]
+		url := fmt.Sprintf("%s?%s", c.Param(urlParam)[1:], c.Request.URL.Query().Encode())
 
 		if byteBody, bodyReadErr := ioutil.ReadAll(c.Request.Body); bodyReadErr == nil && string(byteBody) != "" {
 			c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(byteBody))
