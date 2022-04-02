@@ -102,6 +102,7 @@
 import { Vue } from 'vue-class-component';
 import { ref } from 'vue';
 import { ApiHandler } from '@/api';
+import { trimHttpS } from '@/util';
 
 export default class URLShortner extends Vue {
     protected fullUrl = '';
@@ -130,7 +131,7 @@ export default class URLShortner extends Vue {
         if (!this.fullUrl) {
             return;
         }
-        ApiHandler.shortUrl(this.fullUrl, this.customText)
+        ApiHandler.shortUrl(trimHttpS(this.fullUrl), this.customText)
             .then((res) => {
                 this.shortUrl = res.shortUrl;
                 this.customText = '';
